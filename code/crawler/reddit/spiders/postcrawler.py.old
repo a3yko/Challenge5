@@ -1,0 +1,39 @@
+import scrapy
+from scrapy.selector import Selector
+
+from reddit.items import RedditItem
+
+
+class PostcrawlerSpider(scrapy.Spider):
+    name = 'postcrawler'
+    allowed_domains = ['www.reddit.com/r/wallstreetbets']
+    start_urls = ['https://www.reddit.com/r/wallstreetbets/']
+    user_agent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36'
+
+    custom_settings = {
+        'DEPTH_LIMIT': 10
+    }
+
+    def parse(self, response):
+        
+        title = response.xpath('//h3/text()').extract()
+        votes = response.css('._25IkBM0rRUqWX5ZojEMAFQ::text').extract()
+        comments = response.xpath('//div[2]/div[4]/div[2]/a/span/text()').extract()
+        for (title, votes, comments) in zip(title, votes, comments):
+            
+            item = RedditItem()
+            item['title'] = title
+            item['comments'] = comments
+            
+            if votes == '•':
+                item['votes'] = '0'
+            else:
+                item['votes'] = votes
+            
+            yield item
+                
+                
+        next_page = 'https://www.reddit.com/r/wallstreetbets/?count=25&page=1&before=t3_jndnem'
+        print(next_page)
+        if next_page is not None:
+            yield response.follow(next_page, callback=self.parse)
